@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @page {
+            size: A4 landscape; /* Switch to landscape orientation */
+            margin: 10mm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: auto; /* Allow columns to adjust dynamically */
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+            word-wrap: break-word; /* Ensure long text wraps */
+            max-width: 0; /* Allow shrinking */
+        }
+        th {
+            background-color: #008751;
+            color: #fff;
+        }
+        .summary-table {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Task Summary Report</h1>
+    <h2>Summary</h2>
+    <table class="summary-table">
+        <tr>
+            <th>Engineer ID</th>
+            <th>Name</th>
+            <th>PM</th>
+            <th>Routine</th>
+            <th>Maintenance</th>
+            <th>Total</th>
+        </tr>
+        {% for engineer in engineers %}
+            <tr>
+                <td>{{ engineer.et_id }}</td>
+                <td>{{ engineer.name }}</td>
+                {% with total=0 %}
+                    {% for count in summary %}
+                        {% if count.engineer__et_id == engineer.et_id %}
+                            {% if count.task_type == 'PM' %}
+                                <td>{{ count.count|default:0 }}</td>
+                                {% with total=total|add:count.count|default:0 %}
+                                {% endwith %}
+                            {% elif count.task_type == 'RT' %}
+                                <td>{{ count.count|default:0 }}</td>
+                                {% with total=total|add:count.count|default:0 %}
+                                {% endwith %}
+                            {% elif count.task_type == 'MT' %}
+                                <td>{{ count.count|default:0 }}</td>
+                                {% with total=total|add:count.count|default:0 %}
+                                {% endwith %}
+                            {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                    <td>{{ total }}</td>
+                {% endwith %}
+            </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Task Details</h2>
+    <table>
+        <tr>
+            <th>Engineer ID</th>
+            <th>Name</th>
+            <th>Task Type</th>
+            <th>Description</th>
+            <th>Equipment Type</th>
+            <th>Submitted At</th>
+        </tr>
+        {% for item in summary %}
+            <tr>
+                <td>{{ item.engineer__et_id }}</td>
+                <td>{{ item.engineer__name }}</td>
+                <td>{{ item.task_type }}</td>
+                <td>{{ item.description|default:"N/A" }}</td>
+                <td>{{ item.equipment_type|default:"N/A" }}</td>
+                <td>{{ item.submitted_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

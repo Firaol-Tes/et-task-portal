@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Submit Tasks - Ethiopian Airlines</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+        .header {
+            background-color: #008751;
+            color: #fff;
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .header img {
+            height: 60px;
+            vertical-align: middle;
+            transition: transform 0.3s;
+        }
+        .header img:hover {
+            transform: scale(1.1);
+        }
+        .header span {
+            font-size: 24px;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+        .container {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 25px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        h1 {
+            color: #008751;
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 28px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            border-left: 4px solid #FFC107;
+            transition: transform 0.3s;
+        }
+        .form-group:hover {
+            transform: translateY(-2px);
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: #FFC107;
+            box-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
+            outline: none;
+        }
+        .errorlist {
+            color: #D32F2F;
+            font-size: 0.9em;
+            margin-top: 5px;
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .errorlist li {
+            background: #ffebee;
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+        button {
+            background-color: #008751;
+            color: #fff;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        button:hover {
+            background-color: #006d44;
+            transform: scale(1.05);
+        }
+        .delete-checkbox { display: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="/static/images/ethiopian_airlines_logo.png" alt="Ethiopian Airlines Logo">
+        <span>Ethiopian Airlines Task Portal</span>
+    </div>
+    <div class="container">
+        <h1>Submit Tasks</h1>
+        <form method="post">
+            {% csrf_token %}
+            {{ formset.management_form }}
+            {% for form in formset %}
+                <div class="form-group">
+                    {{ form.as_p }}
+                    {% if form.instance.pk %}
+                        {{ form.DELETE }}
+                    {% endif %}
+                    {% if form.errors %}
+                        <ul class="errorlist">
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                    <li>{{ field.label }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            {% endfor %}
+            <button type="submit">Submit Tasks</button>
+        </form>
+    </div>
+</body>
+</html>
