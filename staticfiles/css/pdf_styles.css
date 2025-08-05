@@ -1,0 +1,8 @@
+table {
+    width: 100% !important;
+    table-layout: auto;
+}
+th, td {
+    word-wrap: break-word;
+    max-width: 150px; /* Adjust as needed */
+}
