@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethiopian Airlines Maintenance Team Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .header {
+            background-color: #008751;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        .header img {
+            max-height: 100px;
+        }
+        .slogan {
+            font-style: italic;
+            font-size: 1.2em;
+            margin-top: 5px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .buttons {
+            margin-top: 20px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            background-color: #008751;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 1.1em;
+        }
+        .btn:hover {
+            background-color: #006d40;
+        }
+        .login-link {
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="/static/images/ethiopian_airlines_logo.png" alt="Ethiopian Airlines Logo" class="logo">
+        <h1>Ethiopian Airlines Maintenance Team Report</h1>
+        <div class="slogan">The New Spirit of Africa</div>
+    </div>
+    <div class="container">
+        <p>Welcome to the Maintenance Team Reporting System. Please select your role:</p>
+        <div class="buttons">
+            <a href="{% url 'reports:submit_tasks' %}" class="btn">Reporting (Engineer)</a>
+            <a href="{% url 'reports:dashboard' %}" class="btn">Dashboard (Team Leader)</a>
+        </div>
+        {% if not user.is_authenticated %}
+            <div class="login-link">
+                <a href="{% url 'login' %}">Login</a> to access the system.
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

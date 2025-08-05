@@ -1,10 +1,10 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.contrib.auth import views as auth_views
+from django.views.generic import TemplateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
-    path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
-    path('', include('reports.urls')),  # Include reports app URLs
+    path('reports/', include('reports.urls')),
+    path('', TemplateView.as_view(template_name='home.html'), name='home'),
+    path('accounts/', include('django.contrib.auth.urls')),
 ]
