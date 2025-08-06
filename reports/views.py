@@ -11,6 +11,7 @@ from django.utils import timezone
 from datetime import datetime
 from django.contrib.auth.decorators import user_passes_test
 import os  # Added to fix NameError in export_pdf
+import logging
 
 # Custom decorator to check if user is a team leader
 def team_leader_required(view_func):
@@ -19,6 +20,8 @@ def team_leader_required(view_func):
             return HttpResponse("You do not have permission to access this page.", status=403)
         return view_func(request, *args, **kwargs)
     return _wrapped_view
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def submit_tasks(request):
@@ -36,6 +39,7 @@ def submit_tasks(request):
                         task.save()
                         form.save_m2m()
                         saved_tasks.append(task)
+                        logger.info(f"Task {i} saved with ID: {task.id}")
                         print(f"Task {i} saved with ID: {task.id}")
                     else:
                         print(f"Error for task {i}: No engineer associated with user: {request.user.username}")
@@ -68,6 +72,7 @@ def dashboard(request):
     summary = tasks.values('engineer__et_id', 'engineer__name', 'task_type').annotate(count=Count('task_type'))
     engineers = Engineer.objects.all()
     task_details = tasks.select_related('engineer').prefetch_related('team_members')
+    logger.info(f"Dashboard loaded with {tasks.count()} tasks")
     
     return render(request, 'dashboard.html', {
         'summary': summary,
