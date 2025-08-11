@@ -59,11 +59,14 @@ def dashboard(request):
     selected_date = request.GET.get('date')
     tasks = TaskSubmission.objects.all().order_by('-submitted_at')
     unique_dates = TaskSubmission.objects.dates('submitted_at', 'day', order='DESC')
+
     if selected_date:
         tasks = tasks.filter(submitted_at__date=selected_date)
+
     summary = tasks.values('engineer__et_id', 'engineer__name', 'task_type').annotate(count=Count('task_type'))
     engineers = Engineer.objects.all()
     task_details = tasks.select_related('engineer').prefetch_related('team_members')
+
     return render(request, 'dashboard.html', {
         'summary': summary,
         'engineers': engineers,
@@ -183,6 +186,7 @@ def export_pdf(request):
             tasks = tasks.filter(submitted_at__range=[start_date, end_date])
         except ValueError:
             pass
+
     summary = tasks.values(
         'engineer__et_id', 'engineer__name', 'task_type',
         'submitted_at', 'shift', 'location', 'equipment_type',
@@ -190,8 +194,11 @@ def export_pdf(request):
         'start_time', 'end_time'
     ).annotate(count=Count('task_type'))
     engineers = Engineer.objects.all()
+
     totals = [{'et_id': engineer.et_id, 'total': sum(count['count'] for count in summary if count['engineer__et_id'] == engineer.et_id)} for engineer in engineers]
+
     html = render(request, 'pdf_template.html', {'summary': summary, 'engineers': engineers, 'totals': totals}).content.decode('utf-8')
+
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename=task_summary.pdf'
     HTML(string=html, base_url=request.build_absolute_uri()).write_pdf(response, stylesheets=['/static/css/pdf_styles.css'] if os.path.exists('/static/css/pdf_styles.css') else [])
@@ -202,6 +209,8 @@ def download_inventory(request):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.datavalidation import DataValidation
+    from openpyxl.formatting.rule import FormulaRule
 
     items = InventoryItem.objects.all().order_by('number')
 
@@ -209,7 +218,9 @@ def download_inventory(request):
     ws = wb.active
     ws.title = "Inventory"
 
-    headers = ["no.", "item", "quantity", "price", "balance"]
+    headers = [
+        "no.", "item", "initial_qty", "in", "out", "quantity", "price", "balance", "min_stock", "status"
+    ]
     ws.append(headers)
 
     header_font = Font(bold=True, color="FFFFFF")
@@ -225,12 +236,51 @@ def download_inventory(request):
         cell.alignment = center
         cell.border = border
 
+    currency_format = '#,##0.00'
+
     for it in items:
-        ws.append([it.number, it.item, it.quantity, float(it.price), float(it.balance)])
+        ws.append([it.number, it.item, it.quantity, 0, 0, None, float(it.price), None, 5, None])
+        r = ws.max_row
+        ws.cell(row=r, column=6).value = f"=C{r}+D{r}-E{r}"
+        ws.cell(row=r, column=7).number_format = currency_format
+        ws.cell(row=r, column=8).value = f"=F{r}*G{r}"
+        ws.cell(row=r, column=8).number_format = currency_format
+        ws.cell(row=r, column=10).value = f"=IF(F{r}<=I{r},\"LOW\",\"OK\")"
 
     if ws.max_row == 1:
         for i in range(1, 6):
-            ws.append([i, "", 0, 0.00, 0.00])
+            ws.append([i, "", 0, 0, 0, None, 0.00, None, 5, None])
+            r = ws.max_row
+            ws.cell(row=r, column=6).value = f"=C{r}+D{r}-E{r}"
+            ws.cell(row=r, column=7).number_format = currency_format
+            ws.cell(row=r, column=8).value = f"=F{r}*G{r}"
+            ws.cell(row=r, column=8).number_format = currency_format
+            ws.cell(row=r, column=10).value = f"=IF(F{r}<=I{r},\"LOW\",\"OK\")"
+
+    last_row = ws.max_row
+    dv_int = DataValidation(type="whole", operator="greaterThanOrEqual", formula1="0", allow_blank=True)
+    ws.add_data_validation(dv_int)
+    dv_int.add(f"D2:D{last_row}")
+    dv_int.add(f"E2:E{last_row}")
+
+    low_rule = FormulaRule(
+        formula=["$F2<=$I2"],
+        stopIfTrue=False,
+        fill=PatternFill(start_color="D32F2F", end_color="D32F2F", fill_type="solid")
+    )
+    ws.conditional_formatting.add(f"A2:J{last_row}", low_rule)
+
+    ws.auto_filter.ref = f"A1:J{last_row}"
+    ws.freeze_panes = "A2"
+
+    totals_row = last_row + 1
+    ws.cell(row=totals_row, column=2).value = "Totals"
+    ws.cell(row=totals_row, column=2).font = Font(bold=True)
+    for col_letter, col_idx, fmt in [("D", 4, None), ("E", 5, None), ("F", 6, None), ("H", 8, currency_format)]:
+        ws.cell(row=totals_row, column=col_idx).value = f"=SUM({col_letter}2:{col_letter}{last_row})"
+        if fmt:
+            ws.cell(row=totals_row, column=col_idx).number_format = fmt
+        ws.cell(row=totals_row, column=col_idx).font = Font(bold=True)
 
     for col in range(1, ws.max_column + 1):
         max_len = 0
@@ -241,6 +291,13 @@ def download_inventory(request):
                 max_len = l
             ws.cell(row=row, column=col).border = border
         ws.column_dimensions[get_column_letter(col)].width = min(max_len + 2, 60)
+
+    ws.insert_rows(1)
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=10)
+    note = ws.cell(row=1, column=1)
+    note.value = f"Inventory Sheet - Generated {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    note.font = Font(bold=True)
+    note.alignment = Alignment(horizontal="center")
 
     output = io.BytesIO()
     wb.save(output)
