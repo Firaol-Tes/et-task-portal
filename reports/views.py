@@ -113,7 +113,7 @@ def export_excel(request):
                     'remark': t.remark,
                 })
             df = pd.DataFrame(rows)
-            # Ensure at least headers exist even if no rows
+            # Ensure headers even if no rows
             if df.empty:
                 df = pd.DataFrame(columns=[
                     'date','shift','reporter','location','equipment_type','problem_description',
