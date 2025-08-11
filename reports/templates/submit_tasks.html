@@ -137,9 +137,6 @@
                 {% for form in formset %}
                     <div class="form-group" data-form-index="{{ forloop.counter0 }}">
                         {{ form.as_p }}
-                        {% if form.instance.pk %}
-                            {{ form.DELETE }}
-                        {% endif %}
                         {% if form.errors %}
                             <ul class="errorlist">
                                 {% for error in form.non_field_errors %}

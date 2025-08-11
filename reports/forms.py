@@ -29,4 +29,4 @@ class TaskSubmissionForm(forms.ModelForm):
             self.add_error('end_time', 'End time must be after start time')
         return cleaned
 
-TaskSubmissionFormSet = formset_factory(TaskSubmissionForm, extra=1, can_delete=True)
+TaskSubmissionFormSet = formset_factory(TaskSubmissionForm, extra=0, can_delete=False)
