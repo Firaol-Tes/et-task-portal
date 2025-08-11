@@ -94,7 +94,6 @@ def export_excel(request):
 
     et_green = "008751"
     et_yellow = "FFC107"
-    et_red = "D32F2F"
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -128,7 +127,6 @@ def export_excel(request):
             df.to_excel(writer, sheet_name=sheet_name, index=False)
 
             ws = writer.sheets[sheet_name]
-            # Header styling
             header_font = Font(bold=True, color="FFFFFF")
             header_fill = PatternFill(start_color=et_green, end_color=et_green, fill_type="solid")
             thin = Side(border_style="thin", color="000000")
@@ -138,7 +136,6 @@ def export_excel(request):
             max_col = ws.max_column
             max_row = ws.max_row
 
-            # Apply header styles
             for col in range(1, max_col + 1):
                 cell = ws.cell(row=1, column=col)
                 cell.font = header_font
@@ -146,7 +143,6 @@ def export_excel(request):
                 cell.alignment = center
                 cell.border = border
 
-            # Alternating row fills and borders
             alt_fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
             for row in range(2, max_row + 1):
                 for col in range(1, max_col + 1):
@@ -156,7 +152,6 @@ def export_excel(request):
                     cell.border = border
                     cell.alignment = Alignment(wrap_text=True)
 
-            # Column widths
             for col in range(1, max_col + 1):
                 max_length = 0
                 for row in range(1, max_row + 1):
@@ -167,7 +162,6 @@ def export_excel(request):
                             max_length = length
                 ws.column_dimensions[get_column_letter(col)].width = min(max_length + 2, 80)
 
-            # Title row (logo placeholder text)
             ws.insert_rows(1)
             ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max_col)
             title_cell = ws.cell(row=1, column=1)
@@ -217,18 +211,15 @@ def download_inventory(request):
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
 
-    # Build current inventory dynamically (no., item, quantity, price, balance)
     items = InventoryItem.objects.all().order_by('number')
 
     wb = Workbook()
     ws = wb.active
     ws.title = "Inventory"
 
-    # Headers
     headers = ["no.", "item", "quantity", "price", "balance"]
     ws.append(headers)
 
-    # Styling for headers
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="008751", end_color="008751", fill_type="solid")
     thin = Side(border_style="thin", color="000000")
@@ -242,16 +233,24 @@ def download_inventory(request):
         cell.alignment = center
         cell.border = border
 
-    # Rows
-    for it in items:
-        ws.append([it.number, it.item, it.quantity, float(it.price), float(it.balance)])
+    currency_format = '#,##0.00'
 
-    # If no items, initialize blank rows (starting zeros) to indicate structure
+    for it in items:
+        ws.append([it.number, it.item, it.quantity, float(it.price), None])
+        r = ws.max_row
+        ws.cell(row=r, column=4).number_format = currency_format
+        # balance = quantity (C) * price (D)
+        ws.cell(row=r, column=5).value = f"=C{r}*D{r}"
+        ws.cell(row=r, column=5).number_format = currency_format
+
     if ws.max_row == 1:
         for i in range(1, 6):
-            ws.append([i, "", 0, 0.00, 0.00])
+            ws.append([i, "", 0, 0.00, None])
+            r = ws.max_row
+            ws.cell(row=r, column=4).number_format = currency_format
+            ws.cell(row=r, column=5).value = f"=C{r}*D{r}"
+            ws.cell(row=r, column=5).number_format = currency_format
 
-    # Autosize columns and add borders
     for col in range(1, ws.max_column + 1):
         max_len = 0
         for row in range(1, ws.max_row + 1):
@@ -262,7 +261,6 @@ def download_inventory(request):
             ws.cell(row=row, column=col).border = border
         ws.column_dimensions[get_column_letter(col)].width = min(max_len + 2, 60)
 
-    # Download
     output = io.BytesIO()
     wb.save(output)
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
