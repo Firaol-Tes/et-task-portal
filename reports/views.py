@@ -24,31 +24,30 @@ def team_leader_required(view_func):
 def submit_tasks(request):
     if request.method == 'POST':
         formset = TaskSubmissionFormSet(request.POST)
-        print("POST request received. Raw POST data:", request.POST)
         if formset.is_valid():
-            print("Formset is valid. Processing forms...")
             saved_tasks = []
-            for i, form in enumerate(formset.forms):
+            for form in formset.forms:
                 if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
                     task = form.save(commit=False)
                     if hasattr(request.user, 'engineer') and request.user.engineer:
                         task.engineer = request.user.engineer
+                        if not task.reporter:
+                            task.reporter = request.user.engineer.name
+                        if not task.date:
+                            task.date = timezone.now().date()
                         task.save()
                         form.save_m2m()
                         saved_tasks.append(task)
-                        print(f"Task {i} saved with ID: {task.id}")
-                    else:
-                        print(f"Error for task {i}: No engineer associated with user: {request.user.username}")
             if saved_tasks:
-                print("All tasks saved successfully. Redirecting to confirmation.")
                 return redirect('reports:submission_confirmation')
-            else:
-                print("No tasks saved. Possible validation or engineer issue.")
-        else:
-            print("Formset is invalid. Errors by form index:", {i: form.errors for i, form in enumerate(formset.forms)})
     else:
-        formset = TaskSubmissionFormSet()
-        print("GET request. Initializing empty formset.")
+        initial = []
+        if hasattr(request.user, 'engineer'):
+            initial.append({
+                'date': timezone.now().date(),
+                'reporter': request.user.engineer.name,
+            })
+        formset = TaskSubmissionFormSet(initial=initial or None)
     return render(request, 'submit_tasks.html', {'formset': formset})
 
 @login_required
@@ -81,7 +80,7 @@ def dashboard(request):
 def export_excel(request):
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
-    tasks = TaskSubmission.objects.all()
+    tasks = TaskSubmission.objects.select_related('engineer').all()
     if date_from and date_to:
         try:
             start_date = datetime.strptime(date_from, '%Y-%m-%d').replace(hour=0, minute=0, second=0)
@@ -89,44 +88,56 @@ def export_excel(request):
             tasks = tasks.filter(submitted_at__range=[start_date, end_date])
         except ValueError:
             pass
-    
-    summary_data = tasks.values('engineer__et_id', 'engineer__name', 'task_type').annotate(count=Count('task_type'))
-    df_summary = pd.DataFrame(list(summary_data))
-    df_summary = df_summary.pivot_table(index=['engineer__et_id', 'engineer__name'], columns='task_type', values='count', fill_value=0)
-    df_summary['Total'] = df_summary.sum(axis=1)
-    
-    tasks_data = tasks.values('submitted_at', 'engineer__et_id', 'engineer__name', 'task_type', 'description', 'equipment_type', 'team_members__name')
-    for task in tasks_data:
-        if task['submitted_at'] and timezone.is_aware(task['submitted_at']):
-            task['submitted_at'] = timezone.make_naive(task['submitted_at'], timezone.get_default_timezone())
-    
+
+    # Group by engineer ID and create one sheet per engineer
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df_summary.to_excel(writer, sheet_name='Summary', index=True)
-        df_tasks = pd.DataFrame(list(tasks_data))
-        df_tasks.to_excel(writer, sheet_name='Details', index=False)
-        
-        # Adjust column widths for both sheets using the same logic as Details
-        workbook = writer.book
-        for sheet_name in ['Summary', 'Details']:
+        engineers = Engineer.objects.filter(id__in=tasks.values('engineer_id'))
+        for engineer in engineers:
+            eng_tasks = tasks.filter(engineer=engineer)
+            rows = []
+            for t in eng_tasks:
+                rows.append({
+                    'date': t.date,
+                    'shift': t.shift,
+                    'reporter': t.reporter or engineer.name,
+                    'location': t.location,
+                    'equipment_type': t.equipment_type,
+                    'problem_description': t.description,
+                    'cause_of_problem': t.cause_of_problem,
+                    'corrective_action': t.corrective_measure,
+                    'start_time': timezone.make_naive(t.start_time, timezone.get_default_timezone()) if t.start_time and timezone.is_aware(t.start_time) else t.start_time,
+                    'end_time': timezone.make_naive(t.end_time, timezone.get_default_timezone()) if t.end_time and timezone.is_aware(t.end_time) else t.end_time,
+                    'time_taken': t.time_taken,
+                    'status': t.status,
+                    'remark': t.remark,
+                })
+            df = pd.DataFrame(rows)
+            # Ensure at least headers exist even if no rows
+            if df.empty:
+                df = pd.DataFrame(columns=[
+                    'date','shift','reporter','location','equipment_type','problem_description',
+                    'cause_of_problem','corrective_action','start_time','end_time','time_taken','status','remark'
+                ])
+            sheet_name = f"{engineer.et_id}"[:31]
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+
+            # Adjust column widths to fit content
             worksheet = writer.sheets[sheet_name]
-            df = df_summary if sheet_name == 'Summary' else df_tasks
-            for i, col in enumerate(worksheet.columns):
-                # Get the column letter (A, B, C, ...)
-                column_letter = chr(65 + i)
-                # Calculate max length based on the first row (header) and data
+            for col_idx, column_cells in enumerate(worksheet.columns, start=1):
                 max_length = 0
-                for cell in col:
-                    if cell.value:
-                        cell_length = len(str(cell.value))
-                        max_length = max(max_length, cell_length)
-                # Ensure at least the header length is considered
-                header_length = len(str(worksheet.cell(row=1, column=i+1).value)) if worksheet.cell(row=1, column=i+1).value else 0
-                max_length = max(max_length, header_length) + 2
-                worksheet.column_dimensions[column_letter].width = max_length
+                for cell in column_cells:
+                    value = cell.value
+                    if value is not None:
+                        length = len(str(value))
+                        if length > max_length:
+                            max_length = length
+                adjusted_width = min(max_length + 2, 80)
+                column_letter = worksheet.cell(row=1, column=col_idx).column_letter
+                worksheet.column_dimensions[column_letter].width = adjusted_width
 
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename=task_summary.xlsx'
+    response['Content-Disposition'] = 'attachment; filename=tasks_by_engineer.xlsx'
     response.write(output.getvalue())
     return response
 

@@ -92,7 +92,12 @@
             padding: 5px 10px;
             border-radius: 3px;
         }
-        button {
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        button, .btn {
             background-color: #008751;
             color: #fff;
             padding: 12px 25px;
@@ -101,10 +106,19 @@
             cursor: pointer;
             font-size: 16px;
             transition: background-color 0.3s, transform 0.3s;
+            text-decoration: none;
+            display: inline-block;
         }
-        button:hover {
+        button:hover, .btn:hover {
             background-color: #006d44;
             transform: scale(1.05);
+        }
+        .btn-secondary {
+            background-color: #FFC107;
+            color: #333;
+        }
+        .btn-secondary:hover {
+            background-color: #e0a800;
         }
         .delete-checkbox { display: none; }
     </style>
@@ -116,31 +130,79 @@
     </div>
     <div class="container">
         <h1>Submit Tasks</h1>
-        <form method="post">
+        <form method="post" id="task-form">
             {% csrf_token %}
             {{ formset.management_form }}
-            {% for form in formset %}
-                <div class="form-group">
-                    {{ form.as_p }}
-                    {% if form.instance.pk %}
-                        {{ form.DELETE }}
-                    {% endif %}
-                    {% if form.errors %}
-                        <ul class="errorlist">
-                            {% for error in form.non_field_errors %}
-                                <li>{{ error }}</li>
-                            {% endfor %}
-                            {% for field in form %}
-                                {% for error in field.errors %}
-                                    <li>{{ field.label }}: {{ error }}</li>
+            <div id="forms-container">
+                {% for form in formset %}
+                    <div class="form-group" data-form-index="{{ forloop.counter0 }}">
+                        {{ form.as_p }}
+                        {% if form.instance.pk %}
+                            {{ form.DELETE }}
+                        {% endif %}
+                        {% if form.errors %}
+                            <ul class="errorlist">
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
                                 {% endfor %}
-                            {% endfor %}
-                        </ul>
-                    {% endif %}
-                </div>
-            {% endfor %}
-            <button type="submit">Submit Tasks</button>
+                                {% for field in form %}
+                                    {% for error in field.errors %}
+                                        <li>{{ field.label }}: {{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="actions">
+                <button type="button" class="btn btn-secondary" id="add-task">Add Task</button>
+                <button type="submit" class="btn">Submit Tasks</button>
+            </div>
         </form>
     </div>
+
+    <script>
+        (function() {
+            const addBtn = document.getElementById('add-task');
+            const formsContainer = document.getElementById('forms-container');
+            const totalFormsInput = document.querySelector('input[name="form-TOTAL_FORMS"]');
+
+            function cloneForm() {
+                const currentCount = parseInt(totalFormsInput.value, 10);
+                const firstForm = formsContainer.querySelector('.form-group');
+                if (!firstForm) return;
+                const newForm = firstForm.cloneNode(true);
+                newForm.setAttribute('data-form-index', currentCount);
+
+                // Update all input/select/textarea elements
+                newForm.querySelectorAll('input, select, textarea').forEach(el => {
+                    // Clear value
+                    if (el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio') {
+                        el.value = '';
+                    }
+                    // Replace name and id index
+                    if (el.name) {
+                        el.name = el.name.replace(/form-(\d+)-/g, `form-${currentCount}-`);
+                    }
+                    if (el.id) {
+                        el.id = el.id.replace(/form-(\d+)-/g, `form-${currentCount}-`);
+                    }
+                });
+
+                // Update labels' for attributes
+                newForm.querySelectorAll('label').forEach(label => {
+                    if (label.htmlFor) {
+                        label.htmlFor = label.htmlFor.replace(/form-(\d+)-/g, `form-${currentCount}-`);
+                    }
+                });
+
+                formsContainer.appendChild(newForm);
+                totalFormsInput.value = currentCount + 1;
+            }
+
+            addBtn.addEventListener('click', cloneForm);
+        })();
+    </script>
 </body>
 </html>
