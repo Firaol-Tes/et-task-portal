@@ -52,3 +52,44 @@ class TaskSubmission(models.Model):
 
     def __str__(self):
         return f"{self.task_type} by {self.engineer.name} on {self.date}"
+
+
+class InventoryItem(models.Model):
+    number = models.AutoField(primary_key=True)
+    item = models.CharField(max_length=255)
+    quantity = models.PositiveIntegerField(default=0)
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    @property
+    def balance(self):
+        return self.quantity * self.price
+
+    def decrease(self, amount: int):
+        if amount < 0:
+            raise ValueError("Amount must be non-negative")
+        if amount > self.quantity:
+            amount = self.quantity
+        self.quantity -= amount
+        self.save(update_fields=["quantity"])
+
+    def __str__(self) -> str:
+        return f"{self.number}. {self.item}"
+
+
+class InventoryTransaction(models.Model):
+    ACTION_CHOICES = (
+        ("TAKE", "Take"),
+        ("ADD", "Add"),
+    )
+    item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, related_name="transactions")
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    quantity = models.PositiveIntegerField()
+    at = models.DateTimeField(auto_now_add=True)
+    performed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def apply(self):
+        if self.action == "TAKE":
+            self.item.decrease(self.quantity)
+        elif self.action == "ADD":
+            self.item.quantity += self.quantity
+            self.item.save(update_fields=["quantity"])
