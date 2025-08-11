@@ -8,6 +8,7 @@ Updated for production deployment on Render.
 from pathlib import Path
 import os
 import dj_database_url
+from urllib.parse import urlparse
 
 # Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -18,6 +19,15 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 # Allow all hosts during development; restrict in production via env var
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split() or ["localhost", "127.0.0.1"]
+
+# On Render, RENDER_EXTERNAL_URL is provided (e.g., https://your-service.onrender.com)
+# Use it to automatically add the correct host and CSRF trusted origin
+_render_external_url = os.getenv("RENDER_EXTERNAL_URL")
+if _render_external_url:
+    _parsed_url = urlparse(_render_external_url)
+    _host_from_render = _parsed_url.netloc
+    if _host_from_render and _host_from_render not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_host_from_render)
 
 # Application definition
 INSTALLED_APPS = [
@@ -106,7 +116,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 SECURE_SSL_REDIRECT = not DEBUG
+# Ensure Django respects X-Forwarded-Proto from Render's proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# CSRF trusted origins from env (space-separated). If RENDER_EXTERNAL_URL is present, ensure it's included.
 CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "").split()
+if _render_external_url and _render_external_url not in CSRF_TRUSTED_ORIGINS:
+    # Normalize to scheme://host only
+    _parsed_for_csrf = urlparse(_render_external_url)
+    CSRF_TRUSTED_ORIGINS.append(f"{_parsed_for_csrf.scheme}://{_parsed_for_csrf.netloc}")
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
