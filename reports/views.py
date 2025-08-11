@@ -210,6 +210,8 @@ def download_inventory(request):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.datavalidation import DataValidation
+    from openpyxl.formatting.rule import FormulaRule
 
     items = InventoryItem.objects.all().order_by('number')
 
@@ -217,7 +219,10 @@ def download_inventory(request):
     ws = wb.active
     ws.title = "Inventory"
 
-    headers = ["no.", "item", "quantity", "price", "balance"]
+    # Enhanced headers with movement and status tracking
+    headers = [
+        "no.", "item", "initial_qty", "in", "out", "quantity", "price", "balance", "min_stock", "status"
+    ]
     ws.append(headers)
 
     header_font = Font(bold=True, color="FFFFFF")
@@ -235,22 +240,58 @@ def download_inventory(request):
 
     currency_format = '#,##0.00'
 
+    # Data rows with formulas for quantity, balance, and status
     for it in items:
-        ws.append([it.number, it.item, it.quantity, float(it.price), None])
+        ws.append([it.number, it.item, it.quantity, 0, 0, None, float(it.price), None, 5, None])
         r = ws.max_row
-        ws.cell(row=r, column=4).number_format = currency_format
-        # balance = quantity (C) * price (D)
-        ws.cell(row=r, column=5).value = f"=C{r}*D{r}"
-        ws.cell(row=r, column=5).number_format = currency_format
+        # quantity = initial_qty (C) + in (D) - out (E)
+        ws.cell(row=r, column=6).value = f"=C{r}+D{r}-E{r}"
+        # price format
+        ws.cell(row=r, column=7).number_format = currency_format
+        # balance = quantity (F) * price (G)
+        ws.cell(row=r, column=8).value = f"=F{r}*G{r}"
+        ws.cell(row=r, column=8).number_format = currency_format
+        # status = LOW/OK based on min_stock (I)
+        ws.cell(row=r, column=10).value = f"=IF(F{r}<=I{r},\"LOW\",\"OK\")"
 
+    # If no items, seed a few example rows
     if ws.max_row == 1:
         for i in range(1, 6):
-            ws.append([i, "", 0, 0.00, None])
+            ws.append([i, "", 0, 0, 0, None, 0.00, None, 5, None])
             r = ws.max_row
-            ws.cell(row=r, column=4).number_format = currency_format
-            ws.cell(row=r, column=5).value = f"=C{r}*D{r}"
-            ws.cell(row=r, column=5).number_format = currency_format
+            ws.cell(row=r, column=6).value = f"=C{r}+D{r}-E{r}"
+            ws.cell(row=r, column=7).number_format = currency_format
+            ws.cell(row=r, column=8).value = f"=F{r}*G{r}"
+            ws.cell(row=r, column=8).number_format = currency_format
+            ws.cell(row=r, column=10).value = f"=IF(F{r}<=I{r},\"LOW\",\"OK\")"
 
+    # Data validation for in/out as non-negative integers
+    last_row = ws.max_row
+    dv_int = DataValidation(type="whole", operator="greaterThanOrEqual", formula1="0", allow_blank=True)
+    ws.add_data_validation(dv_int)
+    dv_int.add(f"D2:D{last_row}")
+    dv_int.add(f"E2:E{last_row}")
+
+    # Conditional formatting: highlight LOW status rows
+    low_rule = FormulaRule(formula=["$F2<=$I2"], stopIfTrue=False,
+                           fill=PatternFill(start_color="D32F2F", end_color="D32F2F", fill_type="solid"))
+    ws.conditional_formatting.add(f"A2:J{last_row}", low_rule)
+
+    # Auto filter and freeze header
+    ws.auto_filter.ref = f"A1:J{last_row}"
+    ws.freeze_panes = "A2"
+
+    # Totals row
+    totals_row = last_row + 1
+    ws.cell(row=totals_row, column=2).value = "Totals"
+    ws.cell(row=totals_row, column=2).font = Font(bold=True)
+    for col_letter, col_idx, fmt in [("D",4,None),("E",5,None),("F",6,None),("H",8,currency_format)]:
+        ws.cell(row=totals_row, column=col_idx).value = f"=SUM({col_letter}2:{col_letter}{last_row})"
+        if fmt:
+            ws.cell(row=totals_row, column=col_idx).number_format = fmt
+        ws.cell(row=totals_row, column=col_idx).font = Font(bold=True)
+
+    # Borders and auto-size
     for col in range(1, ws.max_column + 1):
         max_len = 0
         for row in range(1, ws.max_row + 1):
@@ -260,6 +301,14 @@ def download_inventory(request):
                 max_len = l
             ws.cell(row=row, column=col).border = border
         ws.column_dimensions[get_column_letter(col)].width = min(max_len + 2, 60)
+
+    # Generated timestamp note
+    ws.insert_rows(1)
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=10)
+    note = ws.cell(row=1, column=1)
+    note.value = f"Inventory Sheet - Generated {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    note.font = Font(bold=True)
+    note.alignment = Alignment(horizontal="center")
 
     output = io.BytesIO()
     wb.save(output)
