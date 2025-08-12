@@ -64,7 +64,8 @@ def dashboard(request):
         tasks = tasks.filter(submitted_at__date=selected_date)
 
     summary = tasks.values('engineer__et_id', 'engineer__name', 'task_type').annotate(count=Count('task_type'))
-    engineers = Engineer.objects.all()
+    # Exclude team leaders from the engineers list shown in the table
+    engineers = Engineer.objects.filter(is_team_leader=False)
     task_details = tasks.select_related('engineer').prefetch_related('team_members')
 
     return render(request, 'dashboard.html', {
@@ -182,7 +183,7 @@ def export_pdf(request):
     if date_from and date_to:
         try:
             start_date = datetime.strptime(date_from, '%Y-%m-%d').replace(hour=0, minute=0, second=0)
-            end_date = datetime.strptime(date_to, '%Y-%m-%d').replace(hour=23, minute=59, second=0)
+            end_date = datetime.strptime(date_to, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
             tasks = tasks.filter(submitted_at__range=[start_date, end_date])
         except ValueError:
             pass
@@ -212,7 +213,7 @@ def download_inventory(request):
     from openpyxl.worksheet.datavalidation import DataValidation
     from openpyxl.formatting.rule import FormulaRule
 
-    # Get items: we'll use current quantity as initial "in", and start "out" at 0
+    # Items: use current quantity as initial "in" (editable in sheet), start "out" at 0
     items = InventoryItem.objects.all().order_by('number')
 
     wb = Workbook()
@@ -258,12 +259,12 @@ def download_inventory(request):
     dv_int.add(f"C2:C{last_row}")
     dv_int.add(f"D2:D{last_row}")
 
-    # Conditional formatting: row red when out > in
+    # Conditional formatting: entire row red when out > half of in
     red_fill = PatternFill(start_color="D32F2F", end_color="D32F2F", fill_type="solid")
-    overdraw_rule = FormulaRule(formula=["$D2>$C2"], stopIfTrue=False, fill=red_fill)
-    ws.conditional_formatting.add(f"A2:E{last_row}", overdraw_rule)
+    half_rule = FormulaRule(formula=["$D2>($C2/2)"], stopIfTrue=False, fill=red_fill)
+    ws.conditional_formatting.add(f"A2:E{last_row}", half_rule)
 
-    # Borders, auto-size, filter, freeze
+    # Borders, wider columns, filter, freeze
     ws.auto_filter.ref = f"A1:E{last_row}"
     ws.freeze_panes = "A2"
 
@@ -275,7 +276,8 @@ def download_inventory(request):
             if l > max_len:
                 max_len = l
             ws.cell(row=row, column=col).border = border
-        ws.column_dimensions[get_column_letter(col)].width = min(max_len + 2, 60)
+        # Make columns a bit wider than before
+        ws.column_dimensions[get_column_letter(col)].width = min(max_len + 4, 80)
 
     # Download
     output = io.BytesIO()
