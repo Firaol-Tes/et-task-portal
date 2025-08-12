@@ -9,8 +9,8 @@
     .header { background-color: #008751; color: white; text-align: center; padding: 20px; position: relative; }
     .header img { max-height: 72px; object-fit: contain; }
     .logout { position: absolute; right: 16px; top: 16px; }
-    .logout a { background:#D32F2F; color:#fff; text-decoration:none; padding:8px 12px; border-radius:8px; font-weight:700; }
-    .logout a:hover{ background:#b71c1c; }
+    .logout button { background:#D32F2F; color:#fff; border:0; padding:8px 12px; border-radius:8px; font-weight:700; cursor:pointer; }
+    .logout button:hover{ background:#b71c1c; }
     .slogan { font-style: italic; font-size: 1.2em; margin-top: 5px; }
     .container { max-width: 800px; margin: 20px auto; text-align: center; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
     .buttons { margin-top: 20px; }
@@ -22,7 +22,12 @@
 <body>
   <div class="header">
     {% if user.is_authenticated %}
-      <div class="logout"><a href="{% url 'logout' %}">Logout</a></div>
+      <div class="logout">
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button type="submit">Logout</button>
+        </form>
+      </div>
     {% endif %}
     <img src="/static/images/ethiopian_airlines_logo.png" alt="Ethiopian Airlines Logo" class="logo">
     <h1>Ethiopian Airlines Maintenance Team Report</h1>

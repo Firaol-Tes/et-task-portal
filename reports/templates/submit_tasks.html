@@ -9,8 +9,8 @@
     .header img:hover { transform: scale(1.05); }
     .header span { font-size: 24px; margin-left: 10px; font-weight: bold; }
     .logout { position:absolute; right:16px; top:12px; }
-    .logout a { background:#D32F2F; color:#fff; text-decoration:none; padding:8px 12px; border-radius:8px; font-weight:700; }
-    .logout a:hover{ background:#b71c1c; }
+    .logout button { background:#D32F2F; color:#fff; border:0; padding:8px 12px; border-radius:8px; font-weight:700; cursor:pointer; }
+    .logout button:hover{ background:#b71c1c; }
     .container { max-width: 800px; margin: 30px auto; padding: 25px; background: #fff; border-radius: 10px; box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1); animation: fadeIn 0.5s ease-in; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     h1 { color: #008751; text-align: center; margin-bottom: 25px; font-size: 28px; }
@@ -31,7 +31,14 @@
 </head>
 <body>
   <div class="header">
-    {% if user.is_authenticated %}<div class="logout"><a href="{% url 'logout' %}">Logout</a></div>{% endif %}
+    {% if user.is_authenticated %}
+      <div class="logout">
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button type="submit">Logout</button>
+        </form>
+      </div>
+    {% endif %}
     <img src="/static/images/ethiopian_airlines_logo.png" alt="Ethiopian Airlines Logo">
     <span>Ethiopian Airlines Task Portal</span>
   </div>

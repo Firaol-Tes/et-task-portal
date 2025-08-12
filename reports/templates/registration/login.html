@@ -5,105 +5,22 @@
 
 {% block content %}
 <style>
-  .auth-wrapper {
-    min-height: calc(100vh - 140px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
-  }
-  .auth-card {
-    width: 100%;
-    max-width: 420px;
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-    overflow: hidden;
-    border-top: 4px solid #008751;
-  }
-  .auth-header {
-    padding: 20px 24px 0;
-    text-align: center;
-  }
-  .auth-header .logo {
-    height: 48px;
-    width: auto;
-    object-fit: contain;
-    image-rendering: -webkit-optimize-contrast;
-  }
-  .auth-title {
-    margin: 12px 0 4px;
-    font-size: 20px;
-    font-weight: 700;
-    color: #222;
-  }
-  .auth-subtitle {
-    margin: 0 0 8px;
-    font-size: 13px;
-    color: #666;
-  }
-  .auth-body {
-    padding: 20px 24px 24px;
-  }
-  .form-row {
-    margin-bottom: 14px;
-  }
-  .form-row label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    color: #333;
-  }
-  .form-row input[type="text"],
-  .form-row input[type="password"] {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 14px;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  .form-row input:focus {
-    border-color: #FFC107;
-    box-shadow: 0 0 0 3px rgba(255,193,7,0.15);
-    outline: none;
-  }
-  .btn-primary {
-    width: 100%;
-    background: #008751;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 12px 14px;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform 0.08s ease, background 0.2s ease;
-  }
-  .btn-primary:hover { background: #007343; }
-  .btn-primary:active { transform: translateY(1px); }
-  .auth-footer {
-    padding: 14px 24px 20px;
-    font-size: 12px;
-    color: #777;
-    border-top: 1px solid #f0f0f0;
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-  }
-  .auth-footer a { color: #008751; text-decoration: none; }
-  .messages { margin: 8px 0 0; padding: 0 24px 16px; }
-  .messages p {
-    margin: 6px 0 0;
-    font-size: 12px;
-    color: #D32F2F;
-    background: #fdeaea;
-    border: 1px solid #f6caca;
-    padding: 8px 10px;
-    border-radius: 6px;
-  }
+  .auth-wrapper{min-height:calc(100vh - 140px);display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,#f5f5f5 0%,#ffffff 100%);}
+  .auth-card{width:100%;max-width:420px;background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.08);overflow:hidden;border-top:4px solid #008751;}
+  .auth-header{padding:20px 24px 0;text-align:center;}
+  .auth-header .logo{height:48px;width:auto;object-fit:contain;image-rendering:-webkit-optimize-contrast;}
+  .auth-title{margin:12px 0 4px;font-size:20px;font-weight:700;color:#222;}
+  .auth-subtitle{margin:0 0 8px;font-size:13px;color:#666;}
+  .auth-body{padding:20px 24px 24px;}
+  .form-row{margin-bottom:14px;}
+  .form-row label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#333;}
+  .form-row input[type="text"],.form-row input[type="password"]{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;transition:border-color .2s,box-shadow .2s;}
+  .form-row input:focus{border-color:#FFC107;box-shadow:0 0 0 3px rgba(255,193,7,.15);outline:none;}
+  .btn-primary{width:100%;background:#008751;color:#fff;border:none;border-radius:8px;padding:12px 14px;font-size:15px;font-weight:700;cursor:pointer;transition:transform .08s ease, background .2s ease;}
+  .btn-primary:hover{background:#007343;}
+  .btn-primary:active{transform:translateY(1px);}
+  .messages{margin:8px 0 0;padding:0 24px 16px;}
+  .messages p{margin:6px 0 0;font-size:12px;color:#D32F2F;background:#fdeaea;border:1px solid #f6caca;padding:8px 10px;border-radius:6px;}
 </style>
 
 <div class="auth-wrapper">
@@ -118,25 +35,20 @@
         {% csrf_token %}
         <div class="form-row">
           <label for="id_username">Username</label>
-          {{ form.username|add_class:"" }}
+          {{ form.username }}
         </div>
         <div class="form-row">
           <label for="id_password">Password</label>
-          {{ form.password|add_class:"" }}
+          {{ form.password }}
         </div>
         <button type="submit" class="btn-primary">Sign in</button>
+        {% if messages %}
+          <div class="messages">
+            {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+          </div>
+        {% endif %}
       </div>
     </form>
-    {% if messages %}
-      <div class="messages">
-        {% for message in messages %}
-          <p>{{ message }}</p>
-        {% endfor %}
-      </div>
-    {% endif %}
-    <div class="auth-footer">
-      <span>Need access? Contact your team lead.</span>
-    </div>
   </div>
 </div>
 {% endblock %}
