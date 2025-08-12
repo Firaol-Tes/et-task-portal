@@ -1,0 +1,55 @@
+:root{
+  --et-green:#008751;
+  --et-yellow:#FFC107;
+  --et-red:#D32F2F;
+  --text:#222;
+  --muted:#666;
+  --bg:#f5f5f5;
+  --white:#fff;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family: Arial, Helvetica, sans-serif;
+  color:var(--text);
+  background:var(--bg);
+}
+
+.site-header{
+  background:var(--white);
+  border-bottom:1px solid #eee;
+  position:sticky; top:0; z-index:100;
+}
+.nav{
+  max-width:1200px; margin:0 auto;
+  padding:10px 16px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.brand{display:flex; align-items:center; gap:10px;}
+.brand-logo{height:38px; width:auto; object-fit:contain;}
+.brand-name{font-weight:800; color:var(--text);}
+
+.actions{display:flex; align-items:center; gap:8px;}
+.btn{
+  display:inline-block;
+  padding:8px 14px;
+  border-radius:8px;
+  background:#eee;
+  color:#111;
+  text-decoration:none;
+  font-weight:700;
+  transition:background .2s ease, transform .08s ease;
+}
+.btn:hover{background:#e3e3e3;}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--et-green); color:#fff;}
+.btn-primary:hover{background:#007343;}
+.btn-danger{background:var(--et-red); color:#fff;}
+.btn-danger:hover{background:#b21f1f;}
+
+.page-content{max-width:1200px; margin:20px auto; padding:0 16px;}
+.site-footer{
+  text-align:center; color:#777; padding:16px 0; margin-top:28px;
+  border-top:1px solid #eee; background:#fafafa;
+}
