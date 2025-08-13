@@ -1,1 +1,1 @@
-web: python manage.py migrate && python manage.py collectstatic --noinput && python manage.py ensure_superuser && gunicorn et_portal.wsgi:application --bind 0.0.0.0:$PORT
+web: python manage.py migrate && python manage.py clear_demo_data && python manage.py collectstatic --noinput && python manage.py ensure_superuser && gunicorn et_portal.wsgi:application --bind 0.0.0.0:$PORT
