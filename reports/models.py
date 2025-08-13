@@ -36,7 +36,7 @@ class TaskSubmission(models.Model):
     # Timing
     start_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
-    time_taken = models.CharField(max_length=100, blank=True, null=True)
+    time_taken = models.CharField(max_length=100, blank=True)
 
     # Status/remarks
     status = models.CharField(max_length=50, blank=True)
