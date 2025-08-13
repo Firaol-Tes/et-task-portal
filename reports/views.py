@@ -122,7 +122,7 @@ def export_excel(request):
                     'corrective_action': t.corrective_measure,
                     'start_time': timezone.make_naive(t.start_time, timezone.get_default_timezone()) if t.start_time and timezone.is_aware(t.start_time) else t.start_time,
                     'end_time': timezone.make_naive(t.end_time, timezone.get_default_timezone()) if t.end_time and timezone.is_aware(t.end_time) else t.end_time,
-                    'time_taken': t.time_taken,
+                    'time_taken': (str(t.time_taken) if t.time_taken is not None else ''),
                     'status': t.status,
                     'remark': t.remark,
                 })
@@ -164,12 +164,14 @@ def export_excel(request):
             for col in range(1, max_col + 1):
                 max_length = 0
                 for row in range(1, max_row + 1):
-                    value = ws.cell(row=row, column=col).value
+                    cell = ws.cell(row=row, column=col)
+                    value = cell.value
                     if value is not None:
                         length = len(str(value))
                         if length > max_length:
                             max_length = length
-                ws.column_dimensions[get_column_letter(col)].width = min(max_length + 2, 80)
+                    cell.alignment = Alignment(wrap_text=True, shrink_to_fit=True)
+                ws.column_dimensions[get_column_letter(col)].width = min(max_length + 6, 120)
 
             ws.insert_rows(1)
             ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max_col)
