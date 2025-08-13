@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from .forms import TaskSubmissionFormSet
 from .models import TaskSubmission, Engineer, InventoryItem
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import HttpResponse
 import pandas as pd
 from weasyprint import HTML
@@ -36,6 +36,12 @@ def submit_tasks(request):
                             task.date = timezone.now().date()
                         task.save()
                         form.save_m2m()
+                        # If reporter is blank or equals the primary engineer, append team members to it
+                        if hasattr(request.user, 'engineer'):
+                            names = [request.user.engineer.name] + [m.name for m in task.team_members.all()]
+                            if not task.reporter or task.reporter.strip() == request.user.engineer.name.strip():
+                                task.reporter = ", ".join(names)
+                                task.save(update_fields=['reporter'])
                         saved_tasks.append(task)
             if saved_tasks:
                 return redirect('reports:submission_confirmation')
@@ -83,7 +89,7 @@ def export_excel(request):
 
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
-    tasks = TaskSubmission.objects.select_related('engineer').all()
+    tasks = TaskSubmission.objects.select_related('engineer').prefetch_related('team_members').all()
     if date_from and date_to:
         try:
             start_date = datetime.strptime(date_from, '%Y-%m-%d').replace(hour=0, minute=0, second=0)
@@ -97,9 +103,12 @@ def export_excel(request):
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        engineers = Engineer.objects.filter(id__in=tasks.values('engineer_id'))
+        primary_ids = tasks.values_list('engineer_id', flat=True)
+        member_ids = tasks.values_list('team_members__id', flat=True)
+        all_ids = {i for i in primary_ids if i is not None} | {i for i in member_ids if i is not None}
+        engineers = Engineer.objects.filter(id__in=all_ids)
         for engineer in engineers:
-            eng_tasks = tasks.filter(engineer=engineer)
+            eng_tasks = tasks.filter(Q(engineer=engineer) | Q(team_members=engineer)).distinct()
             rows = []
             for t in eng_tasks:
                 rows.append({
