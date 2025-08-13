@@ -36,7 +36,7 @@ class TaskSubmission(models.Model):
     # Timing
     start_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
-    time_taken = models.DurationField(null=True, blank=True)
+    time_taken = models.CharField(max_length=100, blank=True)
 
     # Status/remarks
     status = models.CharField(max_length=50, blank=True)
@@ -48,8 +48,8 @@ class TaskSubmission(models.Model):
     def save(self, *args, **kwargs):
         if self.start_time and self.end_time:
             calculated = self.end_time - self.start_time
-            if calculated.total_seconds() >= 0:
-                self.time_taken = calculated
+            if calculated.total_seconds() >= 0 and not self.time_taken:
+                self.time_taken = str(calculated)
         super().save(*args, **kwargs)
 
     def __str__(self):
